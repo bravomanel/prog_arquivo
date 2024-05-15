@@ -3,12 +3,24 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <cstdlib> 
 
 using namespace std;
 
-#define FILE_NAME "transacoes.csv"
-// #define FILE_NAME "tran4k.csv"
-// #define FILE_NAME "trank.csv"
+// #define FILE_NAME "transacoes.csv"
+// #define FILE_NAME "tran10k.csv"
+#define FILE_NAME "trank.csv"
+
+
+void clearScreen() {
+    #ifdef _WIN32
+        system("cls");
+    #elif defined(__linux__)
+        system("clear");
+    #else
+        std::cout << "Unsupported OS" << std::endl;
+    #endif
+}
 
 struct Transacao {
     int dia;
@@ -21,9 +33,9 @@ struct Transacao {
     int conta_destino;
 };
 
-// Faz a conversão de String para Int na leitura do arquivo
+// Faz a conversão de String para Int na leitura do arquivo, mostrando erros caso ocorram
 bool stringParaInt(string& str, int& result, int linhaAtual) {
-    if (str.empty() || str == "NULL" || str == "\r" || str == "\n" || str == "\r\n") {
+    if (str.empty() || str == "\r") {
         str = "0";
     }
     try {
@@ -41,6 +53,7 @@ bool stringParaInt(string& str, int& result, int linhaAtual) {
     return true;
 }
 
+// Faz a conversão de String para Float na leitura do arquivo, mostrando erros caso ocorram
 bool stringParaFloat(string& str, float& result, int linhaAtual) {
     if (str.empty()) {
         str = "0";
@@ -116,15 +129,43 @@ vector<Transacao> lerTransacoes(const string& nomeArquivo) {
     return transacoes;
 }
 
+int menu() {
+    int opcao;
+    cout << "1 - Filtrar por mês e ano" << endl;
+    cout << "0 - Sair" << endl;
+    cout << "Digite a opção desejada: ";
+    cin >> opcao;
+    return opcao;
+}
+
 int main() {
     vector<Transacao> transacoes = lerTransacoes(FILE_NAME);
+    vector<Transacao> transacoesFiltradas;
 
-    vector<Transacao> transacoesFiltradas = filtrarPorMesAno(transacoes, 1, 2019);
+    while (true) {
+        int opcao = menu();
+        if (opcao == 0) {
+            break;
+        }
 
-    for (const auto& t : transacoesFiltradas) {
-        cout << t.dia << "/" << t.mes << "/" << t.ano << " "
-            << t.agencia << " " << t.conta << " " << t.transacao << " "
-            << t.agencia_destino << " " << t.conta_destino << endl;
+        if (opcao == 1) {
+            int mes, ano;
+            cout << "Exemplo: 1 2019" << endl;
+            cout << "Digite o mês e o ano desejado: ";
+            cin >> mes >> ano;
+
+            clearScreen();
+            cout << "Filtrando por: " << mes << "/" << ano << endl;
+
+            transacoesFiltradas = filtrarPorMesAno(transacoes, mes, ano);
+
+            for (const auto& t : transacoesFiltradas) {
+                cout << t.dia << "/" << t.mes << "/" << t.ano << " "
+                    << t.agencia << " " << t.conta << " " << t.transacao << " "
+                    << t.agencia_destino << " " << t.conta_destino << endl;
+            }
+            cout << endl;
+        }
     }
 
     cout << "Programa Finalizado!" << endl;
