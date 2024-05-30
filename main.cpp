@@ -19,7 +19,7 @@ void clearScreen() {
     #elif defined(__linux__)
         system("clear");
     #else
-        // std::cout << "Unsupported OS" << std::endl;
+        // cout << "Unsupported OS" << endl;
     #endif
 }
 
@@ -34,7 +34,7 @@ struct Transacao {
     float transacao;
 };
 
-struct Cliente {
+struct Consolidada {
     short agencia;
     short conta;
     short qtdTransacoes;
@@ -42,55 +42,7 @@ struct Cliente {
     float movimentacaoEletronica;
 };
 
-// Faz a conversão de String para Short na leitura do arquivo, mostrando erros caso ocorram
-bool stringParaShort(string& str, short& result, int linhaAtual) {
-    int temp;
-    if (str.empty() || str == "\r") {
-        str = "0";
-    }
-    try {
-        temp = stoi(str);
-        if (temp < SHRT_MIN || temp > SHRT_MAX) {
-            throw std::out_of_range("Número fora do intervalo de uma short");
-        } else {
-            result = temp;
-            return true;
-        }
-
-    } catch (const std::invalid_argument&) {
-        std::cerr << "Linha: " << linhaAtual << "Erro de conversão: " << result << " - " << str << std::endl;
-        return false;
-    } catch (const std::out_of_range&) {
-        std::cerr << "Linha: " << linhaAtual <<" - número fora do intervalo, resultado: " << result << " - esperado: " << str << std::endl;
-        return false;
-    } catch (...) {
-        std::cerr << "Linha: " << linhaAtual << "Erro desconhecido: " << result << " - " << str << std::endl;
-        return false;
-    }
-    return true;
-}
-
-// Faz a conversão de String para Float na leitura do arquivo, mostrando erros caso ocorram
-bool stringParaFloat(string& str, float& result, int linhaAtual) {
-    if (str.empty()) {
-        str = "0";
-    }
-    try {
-        result = stof(str);
-    } catch (const std::invalid_argument&) {
-        std::cerr << "Linha: " << linhaAtual << " Erro de conversão: " << result << " - " << str << std::endl;
-        return false;
-    } catch (const std::out_of_range&) {
-        std::cerr << "Linha: " << linhaAtual << "Número fora do intervalo: " << result << " - " << str << std::endl;
-        return false;
-    } catch (...) {
-        std::cerr << "Linha: " << linhaAtual << "Erro desconhecido: " << result << " - " << str << std::endl;
-        return false;
-    }
-    return true;
-}
-
-vector<Transacao> lerArquivoTransacoes(const string& nomeArquivo) {
+vector<Transacao> lerTransacoesArquivo(const string& nomeArquivo) {
     ifstream arquivo(nomeArquivo);
     vector<Transacao> transacoes;
 
@@ -101,43 +53,36 @@ vector<Transacao> lerArquivoTransacoes(const string& nomeArquivo) {
 
     string linha;
     int linhaAtual = 0;
+    char virgula;
+
     while (getline(arquivo, linha)) {
-        istringstream ss(linha);
-        string campo;
-        Transacao transf;
-        bool dadosValidos = true;
-        linhaAtual++;
+        stringstream streamlinha(linha);
+        Transacao transacao;
 
-        std::getline(ss, campo, ',');
-        dadosValidos &= stringParaShort(campo, transf.dia, linhaAtual);
-        std::getline(ss, campo, ',');
-        dadosValidos &= stringParaShort(campo, transf.mes, linhaAtual);
-        std::getline(ss, campo, ',');
-        dadosValidos &= stringParaShort(campo, transf.ano, linhaAtual);
-        std::getline(ss, campo, ',');
-        dadosValidos &= stringParaShort(campo, transf.agencia, linhaAtual);
-        std::getline(ss, campo, ',');
-        dadosValidos &= stringParaShort(campo, transf.conta, linhaAtual);
-        std::getline(ss, campo, ',');
-        dadosValidos &= stringParaFloat(campo, transf.transacao, linhaAtual);
-        std::getline(ss, campo, ',');
-        dadosValidos &= stringParaShort(campo, transf.agenciaDestino, linhaAtual);
-        std::getline(ss, campo, ',');
-        dadosValidos &= stringParaShort(campo, transf.contaDestino, linhaAtual);
+        char virgula;
+        if (streamlinha >> transacao.dia >> virgula >> transacao.mes >> virgula >> transacao.ano >> virgula
+               >> transacao.agencia >> virgula >> transacao.conta >> virgula >> transacao.transacao) {
+            
+            if (!(streamlinha >> virgula >> transacao.agenciaDestino >> virgula >> transacao.contaDestino)) {
+                transacao.agenciaDestino = 0;
+                transacao.contaDestino = 0;
+            }
 
-        transacoes.push_back(transf);
+            transacoes.push_back(transacao);
+            linhaAtual++;
+        }
     }
 
     arquivo.close();
     return transacoes;
 }
 
-vector<Cliente> filtrarMovimentacoesPorMesAno(vector<Transacao>& transacoes, short mesDesejado, short anoDesejado) {
-    vector<Cliente> movimentacoesFiltradas;
+vector<Consolidada> filtrarMovimentacoesPorMesAno(vector<Transacao>& transacoes, short mesDesejado, short anoDesejado) {
+    vector<Consolidada> movimentacoesFiltradas;
 
     for (const auto& t : transacoes) {
         if (t.mes == mesDesejado && t.ano == anoDesejado) {
-            Cliente c;
+            Consolidada c;
             bool existe = false;
             for (auto& m : movimentacoesFiltradas) {
                 if (m.agencia == t.agencia && m.conta == t.conta) {
@@ -169,7 +114,7 @@ vector<Cliente> filtrarMovimentacoesPorMesAno(vector<Transacao>& transacoes, sho
     return movimentacoesFiltradas;
 }
 
-void salvarConsolidadas(const string& nomeArquivo, vector<Cliente>& movimentacoes) {
+void salvarConsolidadas(const string& nomeArquivo, vector<Consolidada>& movimentacoes) {
     ofstream arquivo(nomeArquivo, ios::binary);
 
     if (!arquivo.is_open()) {
@@ -177,23 +122,23 @@ void salvarConsolidadas(const string& nomeArquivo, vector<Cliente>& movimentacoe
     }
 
     for (const auto& m : movimentacoes) {
-        arquivo.write((char*)&m, sizeof(Cliente));
+        arquivo.write((char*)&m, sizeof(Consolidada));
     }
 
     arquivo.close();
 }
 
-vector<Cliente> carregarConsolidadas(const string& nomeArquivo) {
+vector<Consolidada> carregarConsolidadas(const string& nomeArquivo) {
     ifstream arquivo(nomeArquivo);
-    vector<Cliente> movimentacoes;
+    vector<Consolidada> movimentacoes;
 
     if (!arquivo.is_open()) {
         cerr << "ERROR: Erro ao abrir o arquivo!" << endl;
         return movimentacoes;
     }
 
-    Cliente c;
-    while (arquivo.read((char*)&c, sizeof(Cliente))) {
+    Consolidada c;
+    while (arquivo.read((char*)&c, sizeof(Consolidada))) {
         movimentacoes.push_back(c);
     }
 
@@ -207,7 +152,7 @@ void atualizaLog(string mensagem) {
     tm *ltm = localtime(&agora);
     string tempoLocal = to_string(ltm->tm_mday) + "/" + to_string(1 + ltm->tm_mon) + "/" + to_string(1900 + ltm->tm_year) + " " + to_string(ltm->tm_hour) + ":" + to_string(ltm->tm_min) + ":" + to_string(ltm->tm_sec);
 
-    ofstream log ("log.txt", std::ios::app);
+    ofstream log ("log.txt", ios::app);
     log << tempoLocal << " - " << mensagem << endl;
     log.close();
 }
@@ -240,12 +185,13 @@ int main() {
 
 
     cout << "Lendo arquivo de transações..." << endl;
-    vector<Transacao> transacoes = lerArquivoTransacoes(opcaoArquivo == 1 ? FILE_NAME_1 : opcaoArquivo == 2 ? FILE_NAME_10 : FILE_NAME_F);
+    // vector<Transacao> transacoes = lerArquivoTransacoes(opcaoArquivo == 1 ? FILE_NAME_1 : opcaoArquivo == 2 ? FILE_NAME_10 : FILE_NAME_F);
+    vector<Transacao> transacoes = lerTransacoesArquivo(opcaoArquivo == 1 ? FILE_NAME_1 : opcaoArquivo == 2 ? FILE_NAME_10 : FILE_NAME_F);
     cout << "Arquivo lido com sucesso!" << endl;
 
 
     vector<Transacao> transacoesFiltradas;
-    vector<Cliente> movimentacoes;
+    vector<Consolidada> movimentacoes;
 
     while (true) {
         int opcao = menu();
@@ -274,7 +220,7 @@ int main() {
                 file.close();
                 movimentacoes = carregarConsolidadas("consolidadas" + nomeDados + ".bin");
 
-                Cliente c;
+                Consolidada c;
                 cout << "agencia - conta - especie - eletronica - total - qtdTransacoes" << endl;
                 for (const auto& c : movimentacoes) {
                     cout << c.agencia << " " << c.conta << " "
