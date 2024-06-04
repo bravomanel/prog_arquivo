@@ -19,7 +19,6 @@ void clearScreen() {
     #elif defined(__linux__)
         system("clear");
     #else
-        // cout << "Unsupported OS" << endl;
     #endif
 }
 
@@ -83,27 +82,29 @@ vector<Consolidada> filtrarMovimentacoesPorMesAno(vector<Transacao>& transacoes,
     for (const auto& t : transacoes) {
         if (t.mes == mesDesejado && t.ano == anoDesejado) {
             Consolidada c;
-            bool existe = false;
+            bool existeC = false;
+            // Verifica se a agência e conta já foram registradas
             for (auto& m : movimentacoesFiltradas) {
                 if (m.agencia == t.agencia && m.conta == t.conta) {
-                    existe = true;
+                    existeC = true;
                     if (t.agenciaDestino != 0) {
-                        m.movimentacaoEletronica += t.transacao;
+                        m.movimentacaoEletronica += abs(t.transacao);
                     } else {
-                        m.movimentacaoEspecie += t.transacao;
+                        m.movimentacaoEspecie += abs(t.transacao);
                     }
                     m.qtdTransacoes++;
                     break;
                 }
             }
-            if (!existe) {
+            // Primeira ocorrência da agência e conta
+            if (!existeC) {
                 c.agencia = t.agencia;
                 c.conta = t.conta;
                 if (t.agenciaDestino != 0) {
-                    c.movimentacaoEletronica = t.transacao;
+                    c.movimentacaoEletronica = abs(t.transacao);
                     c.movimentacaoEspecie = 0;
                 } else {
-                    c.movimentacaoEspecie = t.transacao;
+                    c.movimentacaoEspecie = abs(t.transacao);
                     c.movimentacaoEletronica = 0;
                 }
                 c.qtdTransacoes = 1;
@@ -150,6 +151,7 @@ void atualizaLog(string mensagem) {
     // pega a data e o horário atual
     time_t agora = time(0);
     tm *ltm = localtime(&agora);
+
     string tempoLocal = to_string(ltm->tm_mday) + "/" + to_string(1 + ltm->tm_mon) + "/" + to_string(1900 + ltm->tm_year) + " " + to_string(ltm->tm_hour) + ":" + to_string(ltm->tm_min) + ":" + to_string(ltm->tm_sec);
 
     ofstream log ("log.txt", ios::app);
@@ -173,22 +175,12 @@ int main() {
 
     clearScreen();
     cout << "Bem-vindo ao sistema de auditoria de transações!" << endl << endl;
-
-
-    int opcaoArquivo = 2;
-    cout << "Qual arquivo deseja ler?" << endl;
-    cout << "1 - 1k transações" << endl;
-    cout << "2 - 10k transações" << endl;
-    cout << "3 - Todas as transações" << endl;
-    cout << "Digite a opção desejada: ";
-    cin >> opcaoArquivo;
-
-
     cout << "Lendo arquivo de transações..." << endl;
-    // vector<Transacao> transacoes = lerArquivoTransacoes(opcaoArquivo == 1 ? FILE_NAME_1 : opcaoArquivo == 2 ? FILE_NAME_10 : FILE_NAME_F);
-    vector<Transacao> transacoes = lerTransacoesArquivo(opcaoArquivo == 1 ? FILE_NAME_1 : opcaoArquivo == 2 ? FILE_NAME_10 : FILE_NAME_F);
-    cout << "Arquivo lido com sucesso!" << endl;
 
+    // vector<Transacao> transacoes = lerTransacoesArquivo(FILE_NAME_10);
+    vector<Transacao> transacoes = lerTransacoesArquivo(FILE_NAME_F);
+
+    cout << "Arquivo lido com sucesso!" << endl;
 
     vector<Transacao> transacoesFiltradas;
     vector<Consolidada> movimentacoes;
@@ -242,30 +234,61 @@ int main() {
         } else if (opcao == 2) {
             float valorMinimoEspecie;
             float valorMinimoEletronica;
-            short tipoFiltro;
+            short tipoConsulta;
             short mes, ano;
             int qtdOperacoes = 0;
 
             cout << "Digite o mês e o ano desejado (ex: 1 2019):";
             cin >> mes >> ano;
 
-            cout << "Insira o valor mínimo de movimentação em espécie" << endl;
-            cin >> valorMinimoEspecie;
+            cout << "Escolha o tipo de consulta" << endl;
+            cout << "1 - Apenas em Espécie" << endl;
+            cout << "2 - Apenas Eletrônica" << endl;
+            cout << "3 - Espécie OU Eletrônica" << endl;
+            cout << "4 - Espécie E Eletrônica" << endl;
+            cin >> tipoConsulta;
 
-            cout <<  "Insira o valor mínimo de movimentação eletrônica" << endl;
-            cin >> valorMinimoEletronica;
 
-            cout << "Escolha o tipo de filtro" << endl;
-            cout << "1 - x OU y" << endl;
-            cout << "2 - x E y" << endl;
-            cin >> tipoFiltro;
+            // cout << "Escolha o tipo de filtro" << endl;
+            // cout << "1 - x OU y" << endl;
+            // cout << "2 - x E y" << endl;
+            // cin >> tipoFiltro;
+
 
             clearScreen();
 
-            cout << "Filtrando a partir de : " << valorMinimoEspecie << " em espécie " << (tipoFiltro == 1 ? "OU " : "E ") << valorMinimoEletronica << " eletrônica" << endl;
+            if (tipoConsulta == 1) {
+                cout << "Insira o valor mínimo de movimentação em espécie" << endl;
+                cin >> valorMinimoEspecie;
 
-            string nomeDados = (mes < 10 ? "0"  : "mesAno") + to_string(mes) + to_string(ano);;
+                cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << (tipoConsulta == 1 ? "OU " : "E ") << valorMinimoEletronica << " eletrônica" << endl;
+            } else if (tipoConsulta == 2) {
+                cout <<  "Insira o valor mínimo de movimentação eletrônica" << endl;
+                cin >> valorMinimoEletronica;
 
+                cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << (tipoConsulta == 1 ? "OU " : "E ") << valorMinimoEletronica << " eletrônica" << endl;
+            } else if (tipoConsulta == 3) {
+                cout << "Insira o valor mínimo de movimentação em espécie" << endl;
+                cin >> valorMinimoEspecie;
+                cout <<  "Insira o valor mínimo de movimentação eletrônica" << endl;
+                cin >> valorMinimoEletronica;
+
+                cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << "OU " << valorMinimoEletronica << " eletrônica" << endl;
+            } else if (tipoConsulta == 4) {
+                cout << "Insira o valor mínimo de movimentação em espécie" << endl;
+                cin >> valorMinimoEspecie;
+                cout <<  "Insira o valor mínimo de movimentação eletrônica" << endl;
+                cin >> valorMinimoEletronica;
+
+                cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << "E " << valorMinimoEletronica << " eletrônica" << endl;
+            } else {
+                cout << "Opção inválida!" << endl;
+                continue;
+            }
+
+
+            string nomeDados = (mes < 10 ? "0"  : "mesAno") + to_string(mes) + to_string(ano);
+            
             ifstream file("consolidadas" + nomeDados + ".bin");
             if (file) {
                 file.close();
@@ -275,26 +298,55 @@ int main() {
                 salvarConsolidadas("consolidadas" + nomeDados + ".bin", movimentacoes);
             }
 
-            cout << "agencia - conta - especie - eletronica - total - qtdTransacoes" << endl;
-            for (const auto& m : movimentacoes) {
-                if (tipoFiltro == 1) {
-                    if (abs(m.movimentacaoEspecie) >= valorMinimoEspecie || abs(m.movimentacaoEletronica) >= valorMinimoEletronica) {
-                        cout << m.agencia << " " << m.conta << " "
-                            << m.movimentacaoEspecie << " " << m.movimentacaoEletronica 
-                            << " " << m.qtdTransacoes << endl;
+
+
+            if (tipoConsulta == 1) {
+                cout << "agencia - conta - especie - qtdTransacoes" << endl;
+                for (const auto& m : movimentacoes) {
+                    if ((m.movimentacaoEspecie) >= valorMinimoEspecie) {
+                        cout << m.agencia << "        " << m.conta << "     " << m.movimentacaoEspecie << "   " << m.qtdTransacoes << endl;
                         qtdOperacoes++;
                     }
-                } else if (tipoFiltro == 2) {
-                    if (abs(m.movimentacaoEspecie) >= valorMinimoEspecie && abs(m.movimentacaoEletronica) >= valorMinimoEletronica) {
-                        cout << m.agencia << " " << m.conta << " "
-                            << m.movimentacaoEspecie << " " << m.movimentacaoEletronica 
-                            << " " << m.qtdTransacoes << endl;
+                }
+            } else if (tipoConsulta == 2) {
+                cout << "agencia - conta - eletronica - qtdTransacoes" << endl;
+                for (const auto& m : movimentacoes) {
+                    if ((m.movimentacaoEletronica) >= valorMinimoEletronica) {
+                        cout << m.agencia << "        " << m.conta << "     " << m.movimentacaoEletronica << "   " << m.qtdTransacoes << endl;
+                        qtdOperacoes++;
+                    }
+                }
+            } else if (tipoConsulta == 3) {
+                cout << "agencia - conta - especie - eletronica - qtdTransacoes" << endl;
+                for (const auto& m : movimentacoes) {
+                    if ((m.movimentacaoEspecie) >= valorMinimoEspecie || (m.movimentacaoEletronica) >= valorMinimoEletronica) {
+                        cout << m.agencia << "        " << m.conta << "     "
+                            << m.movimentacaoEspecie << "      " << m.movimentacaoEletronica 
+                            << "       " << m.qtdTransacoes << endl;
+                        qtdOperacoes++;
+                    }
+                }
+            } else if (tipoConsulta == 4) {
+                cout << "agencia - conta - especie - eletronica - qtdTransacoes" << endl;
+                for (const auto& m : movimentacoes) {
+                    if ((m.movimentacaoEspecie) >= valorMinimoEspecie && (m.movimentacaoEletronica) >= valorMinimoEletronica) {
+                        cout << m.agencia << "        " << m.conta << "     " << m.movimentacaoEspecie << "      " << m.movimentacaoEletronica << "         " << m.qtdTransacoes << endl;
                         qtdOperacoes++;
                     }
                 }
             }
 
-            atualizaLog(to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEspecie) + " - " + to_string(valorMinimoEletronica) + " - " + (tipoFiltro == 1 ? "OU" : "E") + " - " +to_string(qtdOperacoes));
+            string mensagem;
+            if (tipoConsulta == 1) {
+                mensagem = to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEspecie) + " espécie - " + to_string(qtdOperacoes) + " operações";
+            } else if (tipoConsulta == 2) {
+                mensagem = to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEletronica) + " Eletrônica - " + to_string(qtdOperacoes) + " operações";
+            } else if (tipoConsulta == 3) {
+                mensagem = to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEspecie) + " Espécie OU " + to_string(valorMinimoEletronica) + " Eletrônica - " + to_string(qtdOperacoes) + " operações";
+            } else if (tipoConsulta == 4) {
+                mensagem = to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEspecie) + " Espécie E " + to_string(valorMinimoEletronica) + " Eletrônica - " + to_string(qtdOperacoes) + " operações";
+            }
+            atualizaLog(mensagem);
 
         } else {
             cout << "Opção inválida!" << endl;
