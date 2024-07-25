@@ -3,24 +3,11 @@
 #include <sstream>
 #include <vector>
 #include <string>
-#include <cstdlib>
-#include <climits>
 #include <ctime>
 
 #define FILE_NAME_F "transacoes.csv"
-#define FILE_NAME_10 "tran10k.csv"
-#define FILE_NAME_1 "trank.csv"
 
 using namespace std;
-
-void clearScreen() {
-    #ifdef _WIN32
-        system("cls");
-    #elif defined(__linux__)
-        system("clear");
-    #else
-    #endif
-}
 
 struct Transacao {
     short dia;
@@ -41,6 +28,49 @@ struct Consolidada {
     float movimentacaoEletronica;
 };
 
+
+void clearScreen() {
+#ifdef _WIN32
+    system("cls");
+#elif defined(__linux__)
+    system("clear");
+#else
+#endif
+}
+
+string toStringPrecision(const float valor, const int decimalPlaces = 6)
+{
+    ostringstream out;
+    out.precision(decimalPlaces);
+    out << std::fixed << valor;
+    return std::move(out).str();
+}
+
+void salvarConsolidadas(const string& nomeArquivo, vector<Consolidada>& movimentacoes) {
+    ofstream arquivo(nomeArquivo, ios::binary);
+
+    if (!arquivo.is_open()) {
+        cerr << "ERROR: Erro ao abrir o arquivo!" << endl;
+    }
+
+    for (const auto& m : movimentacoes) {
+        arquivo.write((char*)&m, sizeof(Consolidada));
+    }
+
+    arquivo.close();
+}
+
+void atualizaLog(string mensagem) {
+    time_t agora = time(0);
+    tm* ltm = localtime(&agora);
+
+    string tempoLocal = to_string(ltm->tm_mday) + "/" + to_string(1 + ltm->tm_mon) + "/" + to_string(1900 + ltm->tm_year) + " " + to_string(ltm->tm_hour) + ":" + to_string(ltm->tm_min) + ":" + to_string(ltm->tm_sec);
+
+    ofstream log("log.txt", ios::app);
+    log << mensagem << " - " << tempoLocal << endl;
+    log.close();
+}
+
 vector<Transacao> lerTransacoesArquivo(const string& nomeArquivo) {
     ifstream arquivo(nomeArquivo);
     vector<Transacao> transacoes;
@@ -60,8 +90,8 @@ vector<Transacao> lerTransacoesArquivo(const string& nomeArquivo) {
 
         char virgula;
         if (streamlinha >> transacao.dia >> virgula >> transacao.mes >> virgula >> transacao.ano >> virgula
-               >> transacao.agencia >> virgula >> transacao.conta >> virgula >> transacao.transacao) {
-            
+            >> transacao.agencia >> virgula >> transacao.conta >> virgula >> transacao.transacao) {
+
             if (!(streamlinha >> virgula >> transacao.agenciaDestino >> virgula >> transacao.contaDestino)) {
                 transacao.agenciaDestino = 0;
                 transacao.contaDestino = 0;
@@ -115,20 +145,6 @@ vector<Consolidada> filtrarMovimentacoesPorMesAno(vector<Transacao>& transacoes,
     return movimentacoesFiltradas;
 }
 
-void salvarConsolidadas(const string& nomeArquivo, vector<Consolidada>& movimentacoes) {
-    ofstream arquivo(nomeArquivo, ios::binary);
-
-    if (!arquivo.is_open()) {
-        cerr << "ERROR: Erro ao abrir o arquivo!" << endl;
-    }
-
-    for (const auto& m : movimentacoes) {
-        arquivo.write((char*)&m, sizeof(Consolidada));
-    }
-
-    arquivo.close();
-}
-
 vector<Consolidada> carregarConsolidadas(const string& nomeArquivo) {
     ifstream arquivo(nomeArquivo);
     vector<Consolidada> movimentacoes;
@@ -145,18 +161,6 @@ vector<Consolidada> carregarConsolidadas(const string& nomeArquivo) {
 
     arquivo.close();
     return movimentacoes;
-}
-
-void atualizaLog(string mensagem) {
-    // pega a data e o horário atual
-    time_t agora = time(0);
-    tm *ltm = localtime(&agora);
-
-    string tempoLocal = to_string(ltm->tm_mday) + "/" + to_string(1 + ltm->tm_mon) + "/" + to_string(1900 + ltm->tm_year) + " " + to_string(ltm->tm_hour) + ":" + to_string(ltm->tm_min) + ":" + to_string(ltm->tm_sec);
-
-    ofstream log ("log.txt", ios::app);
-    log << tempoLocal << " - " << mensagem << endl;
-    log.close();
 }
 
 int menu() {
@@ -177,10 +181,15 @@ int main() {
     cout << "Bem-vindo ao sistema de auditoria de transações!" << endl << endl;
     cout << "Lendo arquivo de transações..." << endl;
 
-    // vector<Transacao> transacoes = lerTransacoesArquivo(FILE_NAME_10);
     vector<Transacao> transacoes = lerTransacoesArquivo(FILE_NAME_F);
 
-    cout << "Arquivo lido com sucesso!" << endl;
+    if (transacoes.empty()) {
+        cerr << "Arquivo inválido ou vazio." << endl;
+        cerr << "Saindo..." << endl;
+        return 1;
+    } else {
+        cout << "Transações lidas com sucesso!" << endl;
+    }
 
     vector<Transacao> transacoesFiltradas;
     vector<Consolidada> movimentacoes;
@@ -204,8 +213,8 @@ int main() {
             nomeDados = mes < 10 ? "0" + mesAno : mesAno;
 
             clearScreen();
-            cout << "Filtrando por: " << mes << "/" << ano << endl;
-            
+            cout << "Consultando em: " << mes << "/" << ano << endl;
+
             ifstream file("consolidadas" + nomeDados + ".bin");
 
             if (file) {
@@ -216,7 +225,7 @@ int main() {
                 cout << "agencia - conta - especie - eletronica - total - qtdTransacoes" << endl;
                 for (const auto& c : movimentacoes) {
                     cout << c.agencia << " " << c.conta << " "
-                        << c.movimentacaoEspecie << " " << c.movimentacaoEletronica 
+                        << c.movimentacaoEspecie << " " << c.movimentacaoEletronica
                         << " " << c.qtdTransacoes << endl;
                 }
 
@@ -224,10 +233,13 @@ int main() {
                 movimentacoes = filtrarMovimentacoesPorMesAno(transacoes, mes, ano);
                 salvarConsolidadas("consolidadas" + nomeDados + ".bin", movimentacoes);
 
+                const string mensagem = "CONSULTA - " + (mes < 10 ? "0" + to_string(mes) : to_string(mes)) + "/" + to_string(ano) + " - " + to_string(movimentacoes.size()) + " registros";
+                atualizaLog(mensagem);
+
                 cout << "agencia - conta - especie - eletronica - total - qtdTransacoes" << endl;
                 for (const auto& m : movimentacoes) {
                     cout << m.agencia << " " << m.conta << " "
-                        << m.movimentacaoEspecie << " " << m.movimentacaoEletronica 
+                        << m.movimentacaoEspecie << " " << m.movimentacaoEletronica
                         << " " << m.qtdTransacoes << endl;
                 }
             }
@@ -248,36 +260,29 @@ int main() {
             cout << "4 - Espécie E Eletrônica" << endl;
             cin >> tipoConsulta;
 
-
-            // cout << "Escolha o tipo de filtro" << endl;
-            // cout << "1 - x OU y" << endl;
-            // cout << "2 - x E y" << endl;
-            // cin >> tipoFiltro;
-
-
             clearScreen();
 
             if (tipoConsulta == 1) {
                 cout << "Insira o valor mínimo de movimentação em espécie" << endl;
                 cin >> valorMinimoEspecie;
 
-                cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << (tipoConsulta == 1 ? "OU " : "E ") << valorMinimoEletronica << " eletrônica" << endl;
+                cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << endl;
             } else if (tipoConsulta == 2) {
-                cout <<  "Insira o valor mínimo de movimentação eletrônica" << endl;
+                cout << "Insira o valor mínimo de movimentação eletrônica" << endl;
                 cin >> valorMinimoEletronica;
 
                 cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << (tipoConsulta == 1 ? "OU " : "E ") << valorMinimoEletronica << " eletrônica" << endl;
             } else if (tipoConsulta == 3) {
                 cout << "Insira o valor mínimo de movimentação em espécie" << endl;
                 cin >> valorMinimoEspecie;
-                cout <<  "Insira o valor mínimo de movimentação eletrônica" << endl;
+                cout << "Insira o valor mínimo de movimentação eletrônica" << endl;
                 cin >> valorMinimoEletronica;
 
                 cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << "OU " << valorMinimoEletronica << " eletrônica" << endl;
             } else if (tipoConsulta == 4) {
                 cout << "Insira o valor mínimo de movimentação em espécie" << endl;
                 cin >> valorMinimoEspecie;
-                cout <<  "Insira o valor mínimo de movimentação eletrônica" << endl;
+                cout << "Insira o valor mínimo de movimentação eletrônica" << endl;
                 cin >> valorMinimoEletronica;
 
                 cout << "Filtrando a partir de : " << valorMinimoEspecie << " espécie " << "E " << valorMinimoEletronica << " eletrônica" << endl;
@@ -287,8 +292,9 @@ int main() {
             }
 
 
-            string nomeDados = (mes < 10 ? "0"  : "mesAno") + to_string(mes) + to_string(ano);
-            
+            string nomeDados = (mes < 10 ? "0" : "mesAno") + to_string(mes) + to_string(ano);
+
+
             ifstream file("consolidadas" + nomeDados + ".bin");
             if (file) {
                 file.close();
@@ -296,6 +302,9 @@ int main() {
             } else {
                 movimentacoes = filtrarMovimentacoesPorMesAno(transacoes, mes, ano);
                 salvarConsolidadas("consolidadas" + nomeDados + ".bin", movimentacoes);
+
+                const string mensagem = "CONSULTA - " + (mes < 10 ? "0" + to_string(mes) : to_string(mes)) + "/" + to_string(ano) + " - " + to_string(movimentacoes.size()) + " registros";
+                atualizaLog(mensagem);
             }
 
 
@@ -321,7 +330,7 @@ int main() {
                 for (const auto& m : movimentacoes) {
                     if ((m.movimentacaoEspecie) >= valorMinimoEspecie || (m.movimentacaoEletronica) >= valorMinimoEletronica) {
                         cout << m.agencia << "        " << m.conta << "     "
-                            << m.movimentacaoEspecie << "      " << m.movimentacaoEletronica 
+                            << m.movimentacaoEspecie << "      " << m.movimentacaoEletronica
                             << "       " << m.qtdTransacoes << endl;
                         qtdOperacoes++;
                     }
@@ -338,13 +347,13 @@ int main() {
 
             string mensagem;
             if (tipoConsulta == 1) {
-                mensagem = to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEspecie) + " espécie - " + to_string(qtdOperacoes) + " operações";
+                mensagem = "FILTRO - " + (mes < 10 ? "0" + to_string(mes) : to_string(mes)) + "/" + to_string(ano) + " - " + toStringPrecision(valorMinimoEspecie, 2) + " Espécie - " + to_string(qtdOperacoes) + " registros";
             } else if (tipoConsulta == 2) {
-                mensagem = to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEletronica) + " Eletrônica - " + to_string(qtdOperacoes) + " operações";
+                mensagem = "FILTRO - " + (mes < 10 ? "0" + to_string(mes) : to_string(mes)) + "/" + to_string(ano) + " - " + toStringPrecision(valorMinimoEletronica, 2) + " Eletrônica - " + to_string(qtdOperacoes) + " registros";
             } else if (tipoConsulta == 3) {
-                mensagem = to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEspecie) + " Espécie OU " + to_string(valorMinimoEletronica) + " Eletrônica - " + to_string(qtdOperacoes) + " operações";
+                mensagem = "FILTRO - " + (mes < 10 ? "0" + to_string(mes) : to_string(mes)) + "/" + to_string(ano) + " - " + toStringPrecision(valorMinimoEspecie, 2) + " Espécie OU " + toStringPrecision(valorMinimoEletronica, 2) + " Eletrônica - " + toStringPrecision(qtdOperacoes, 2) + " registros";
             } else if (tipoConsulta == 4) {
-                mensagem = to_string(mes) + "/" + to_string(ano) + " - " + to_string(valorMinimoEspecie) + " Espécie E " + to_string(valorMinimoEletronica) + " Eletrônica - " + to_string(qtdOperacoes) + " operações";
+                mensagem = "FILTRO - " + (mes < 10 ? "0" + to_string(mes) : to_string(mes)) + "/" + to_string(ano) + " - " + toStringPrecision(valorMinimoEspecie, 2) + " Espécie E " + toStringPrecision(valorMinimoEletronica, 2) + " Eletrônica - " + toStringPrecision(qtdOperacoes, 2) + " registros";
             }
             atualizaLog(mensagem);
 
