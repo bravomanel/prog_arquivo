@@ -2,12 +2,26 @@
 #include <fstream>
 #include <map>
 #include <cctype>
+#include <algorithm>
 
 using namespace std;
 
-void print_ordered_map(map<char, int> map_characters) {
-    
+bool compare_pairs(pair<char, int>& a, pair<char, int>& b) {
+    return a.second > b.second;
 }
+
+vector<pair<char, int>> sort(map<char, int>& unordered_map) 
+{ 
+    vector<pair<char, int> > temp_vector; 
+ 
+    for (auto& i : unordered_map) { 
+        temp_vector.push_back(i); 
+    } 
+ 
+    sort(temp_vector.begin(), temp_vector.end(), compare_pairs); 
+
+    return temp_vector;
+} 
 
 map<char, int> map_characters(string content) {
     map<char, int> characters_table;
@@ -26,9 +40,8 @@ map<char, int> map_characters(string content) {
 }
 
 string read_file(string text_file_name) {
-    string file_content;
-    // fstream file(text_file_name);
     fstream file(text_file_name);
+    string file_content;
 
     if (file.is_open()) {
         while (getline (file, file_content)) {}
@@ -39,26 +52,24 @@ string read_file(string text_file_name) {
 }
 
 int main() {
-    // string text_file_name;
-    string text_file_name = "teste.txt";
+    string text_file_name;
     string file_content;
-    map<char, int> characters_result;
 
     cout << "Digite o nome do arquivo de texto (com sua extensão):" << endl;
-    // cin >> text_file_name;
+    cin >> text_file_name;
 
     file_content = read_file(text_file_name);
     cout << file_content << endl;
 
-    characters_result = map_characters(file_content);
+    
+    map<char, int> counted_characters = map_characters(file_content);
+    
+    vector<pair<char, int>> ordered_characters = sort(counted_characters);
 
-    print_ordered_map(characters_result);
+    for (auto& i : ordered_characters) { 
+        cout << i.first << ": " << i.second << endl; 
+    } 
 
-
-    cout << "My map contain x elemnts: " << characters_result.size();
-    for (map<char,int>::iterator it=characters_result.begin(); it!=characters_result.end(); ++it)
-        std::cout << '\n' << it->first << " => " << it->second;
-
-    cout << endl;
+    cout << "Programa finalizado com sucesso!" << endl;
     return 0;
 }
