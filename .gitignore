@@ -3,4 +3,4 @@ log.txt
 consolida*
 .vscode
 .editorconfig
-a.out
+*.out
