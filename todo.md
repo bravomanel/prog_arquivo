@@ -1,0 +1,3 @@
+- Trocar o trabalho para ler o arquivo apenas quando for fazer uma checagem de mês, e não salvar o arquivo todo em memória, para economizar memória. Ler uma linha, salvar no arquivo se for o caso, e passar pra próxima linha.
+- Tentar usar threading para melhorar a otimização do código.
+- 
